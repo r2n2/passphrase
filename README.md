@@ -1,5 +1,5 @@
                                 passphrase.pl
-
+ 
    Program to create a passphrase using diceware.org's word list and a list of
    numbers retrieved at run-time from randomw.org. It can accept several
    arguments.
