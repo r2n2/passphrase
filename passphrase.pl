@@ -3,25 +3,29 @@
 use strict;
 use warnings;
 use Getopt::Long;
-use LWP::Simple;
+use LWP::UserAgent ();
+use LWP::Protocol::https;
+use Scalar::Util qw( looks_like_number );
 
-my $randomURL="http://www.random.org/integers/?num=NUMXXX&min=1&max=6&col=5&base=10&format=plain&rnd=new";
+my $randomorgURL="https://www.random.org/integers/?num=NUMXXX&min=11111&max=66666&col=1&base=10&format=plain&rnd=new";
 
 my $dicewareURL="http://world.std.com/~reinhold/diceware.wordlist.asc";
 
-my $VERSION  = "1.0";
+my $VERSION  = "1.1";
 my $dashes   = "---------------";
+my $debugFlag= 0;
 my $getlist  = 0;
 my $help     = 0;
-my $listfile = $ENV{DICEWAREFILE};
-my $wordcnt  = 3;
+my $listfile = "./diceware.wordlist.asc";
+my $wordcnt  = 5;
 my $words;
 my %wordlist = ();
 
-my $result = GetOptions ('wordcount=i' => \$wordcnt,
+my $result = GetOptions ('debug'       => \$debugFlag,
                          'file=s'      => \$listfile,
                          'getwordlist' => \$getlist,
                          'version'     => sub{ Print_Version(); },
+                         'wordcount=i' => \$wordcnt,
                          'help|?'      => sub{ Usage(); }
                         );
 
@@ -48,13 +52,23 @@ else
    Usage();
 }
 
-my $rows = 5*$wordcnt;
-$randomURL =~ s/NUMXXX/$rows/;
+$randomorgURL =~ s/NUMXXX/$wordcnt/;
 
-my $content = get($randomURL) or die 'Unable to get random numbers';
-$content =~ s/\s+//g;
+if( $debugFlag ) { print "\$randomorgURL = $randomorgURL\n"; }
 
-my @rolls = $content =~ /(.{1,5})/g;
+my $ua = LWP::UserAgent->new;
+$ua->timeout(10);
+$ua->env_proxy;
+
+my $response = $ua->get($randomorgURL);
+
+if (! $response->is_success) {
+    die $response->status_line;
+}
+
+if( $debugFlag ) { print $response->decoded_content; }
+
+my @rolls = split /\n/, $response->decoded_content;
 
 foreach my $num (@rolls)
 {
@@ -71,7 +85,6 @@ sub Print_Version
    print "$0, version $VERSION\n";
    exit;
 }
-
 
 sub Read_Wordlist
 {
@@ -90,7 +103,11 @@ sub Read_Wordlist
       if( $rec eq "" ) { next; }
 
       my($number,$word) = split(/\s/,$rec);
-      $list{$number} = $word;
+      if( looks_like_number( $number ) ) {
+          if( ($number >= 11111) && ($number <= 66666) ) {
+              $list{$number} = $word;
+          }
+      }
    }
 
    close( $InF );
@@ -104,36 +121,43 @@ sub Usage
 {
 
    print "
-                                passphrase.pl
+                               passphrase.pl
 
-   Program to create a passphrase using diceware.org's word list and a list of
-   numbers retreived at runtime from randomw.org.  It can accept two arguments.
-   The diceware.org word file and a roll count.
+   Program to create a passphrase using diceware.org's word list and a list
+   of numbers retreived at runtime from randomw.org.  It can accept two
+   arguments.  The diceware.org word file and a roll count.
 
-Usage: passphrase.pl [-file <word-file>] [-getwordlist] [-wordcnt <wordcount>]
-                     [-help|?] [-version]
+Usage: passphrase.pl [-debug] [-file <word-file>] [-GetWordList] [-pc <phrasecnt>]
+                     [-wc <wordcount>] [-version] [-help|?]
+
+   [-debug] toggles debugging output to help isolate problems.
 
    [-file <word-file>] provides the path and name of the file containing
        diceware.org's word list.  The URL to retreieve this list is
-       \"http://world.std.com/~reinhold/diceware.wordlist.asc\".  The
-       environment variable DICEWAREFILE may point to the Diceware file or you
-       may specify the file on the command line.
+       \"http://world.std.com/~reinhold/diceware.wordlist.asc\".
+
+       The environment variable DICEWAREFILE can be used to point to the
+       Diceware file or you can specify the file on the command line.  The
+       default is the current directory if otherwise unspecified.
 
    [-getwordlist] Flag to signal retreival of Dice Ware word list.  It is
-       quite possible that you do not have the Diecware word list.  In such an
-       event this program is capable of retreiving a copy from the diceware
-       site itself.  Upon completion the program will exit.
+       quite possible that you do not have the Diecware word list.  In such
+       an event this program is capable of retreiving a copy from the
+       diceware site itself.  Upon completion the program will exit.
 
-   [-help|?] Provide this help and exit.
+   [-help|?] Provide this incredibly handsome help and then exit.
 
-   [-wordcnt <wordcount>] is the number of words the passphrase will contain.
+   [-pc <phrasecount> is the number of individual pass phrases the user
+       wants in each run.  The default is one passphrase per run.
+
+   [-wc <wordcount>] is the number of words a passphrase will contain.
       If not provided the default is 3 words.
 
    [-version] Print the program version and exit.
 
-Example:
+Examples:
 
-   \$ passphrase.pl -f ./diceware-wordlist.asc  -wordcnt 5
+   \$ passphrase.pl -f ./diceware-wordlist.asc  -wc 5
 
     berra egypt envy qa chen
 
