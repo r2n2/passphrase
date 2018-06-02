@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-use strict;
+use strict 'refs';
 use warnings;
 use Getopt::Long;
 use LWP::UserAgent ();
@@ -19,7 +19,7 @@ my $help     = 0;
 my $listfile = "./diceware.wordlist.asc";
 my $wordcnt  = 5;
 my $words;
-my %wordlist = ();
+my $wordlist = ();
 
 my $result = GetOptions ('debug'       => \$debugFlag,
                          'file=s'      => \$listfile,
@@ -45,7 +45,7 @@ if( $getlist )  # Get word list and exit.
 
 if( -e $listfile )
 {
-   %wordlist = Read_Wordlist( $listfile );
+   $wordlist = Read_Wordlist( $listfile );
 }
 else
 {
@@ -72,7 +72,9 @@ my @rolls = split /\n/, $response->decoded_content;
 
 foreach my $num (@rolls)
 {
-   print "$wordlist{$num} ";
+#    $$hashref{"KEY"}
+    print $$wordlist{ $num };
+    print " ";
 }
 
 print "\n\n";
@@ -112,7 +114,7 @@ sub Read_Wordlist
 
    close( $InF );
 
-   return( %list );
+   return( \%list );
 
 }
 
