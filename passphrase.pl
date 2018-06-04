@@ -3,6 +3,7 @@
 use strict 'refs';
 use warnings;
 use Getopt::Long;
+use LWP::Simple;
 use LWP::UserAgent ();
 use LWP::Protocol::https;
 use Scalar::Util qw( looks_like_number );
